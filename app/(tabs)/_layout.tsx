@@ -40,6 +40,27 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="add-event"
+        options={{
+          title: 'Add Event',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus.circle.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="event-list"
+        options={{
+          title: 'Event List',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="list.bullet" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="countdown"
+        options={{
+          title: 'Countdown',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="timer.fill" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
