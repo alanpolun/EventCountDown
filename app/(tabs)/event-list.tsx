@@ -1,14 +1,64 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, FlatList, View } from 'react-native';
+import { useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
+type Event = {
+  id: string;
+  name: string;
+  date: string; // Stored as ISO string
+};
+
 export default function EventListScreen() {
+  const [events, setEvents] = useState<Event[]>([]);
+
+  const loadEvents = useCallback(async () => {
+    try {
+      const savedEvents = await AsyncStorage.getItem('scheduledEvents');
+      if (savedEvents !== null) {
+        setEvents(JSON.parse(savedEvents));
+      } else {
+        setEvents([]); // Set empty array if no events are saved
+      }
+    } catch (error) {
+      console.error('Error loading events:', error);
+      setEvents([]); // Set empty array in case of error
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Call the async function inside the effect
+      (async () => {
+        await loadEvents();
+      })();
+
+      // Optional cleanup function
+      return () => {};
+    }, [loadEvents])
+  );
+
+  const renderItem = ({ item }: { item: Event }) => (
+    <View style={styles.eventItem}>
+      <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
+      <ThemedText>{new Date(item.date).toLocaleString()}</ThemedText>
+    </View>
+  );
+
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title">Event List</ThemedText>
-      {/* Placeholder for the event list */}
-      <ThemedText>Event list will appear here.</ThemedText>
+      <ThemedText type="title" style={styles.title}>Event List</ThemedText>
+      <FlatList
+        data={events}
+        renderItem={renderItem}
+        keyExtractor={item => item.id.toString()}
+        ListEmptyComponent={() => (
+          <ThemedText style={styles.noEventsText}>No events scheduled yet.</ThemedText>
+        )}
+      />
     </ThemedView>
   );
 }
@@ -16,8 +66,21 @@ export default function EventListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     padding: 20,
+  },
+  title: {
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  eventItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    marginBottom: 10, // Add some space between items
+  },
+  noEventsText: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontStyle: 'italic',
   },
 });

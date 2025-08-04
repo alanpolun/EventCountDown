@@ -1,24 +1,41 @@
 import React, { useState } from 'react';
-import { TextInput, Button, StyleSheet } from 'react-native';
+import { TextInput, Button, StyleSheet, Platform, View } from 'react-native';
+import { router } from 'expo-router';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { format } from 'date-fns';
 
 export default function AddEventScreen() {
   const [eventName, setEventName] = useState('');
-  const [eventDate, setEventDate] = useState('');
-  const [eventTime, setEventTime] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [mode, setMode] = useState<'date' | 'time'>('date');
+  const [show, setShow] = useState(false);
 
-  const handleSaveEvent = () => {
-    // Here you would typically save the event data
-    // For now, let's just log the values
+  const onChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    const currentDate = selectedDate || date;
+    setShow(Platform.OS === 'ios');
+    setDate(currentDate);
+  };
+
+  const handleSaveEvent = async () => {
     console.log('Event Name:', eventName);
-    console.log('Event Date:', eventDate);
-    console.log('Event Time:', eventTime);
+    console.log('Event Date and Time:', date);
 
-    // Clear the input fields after saving (optional)
+    const newEvent = {
+      id: Date.now().toString(), // Simple unique ID
+      name: eventName,
+      date: date.toISOString(), // Save date as ISO string
+    };
+
+    const existingEvents = await AsyncStorage.getItem('scheduledEvents');
+    const events = existingEvents ? JSON.parse(existingEvents) : [];
+    events.push(newEvent);
+    await AsyncStorage.setItem('scheduledEvents', JSON.stringify(events));
     setEventName('');
-    setEventDate('');
-    setEventTime('');
+    setDate(new Date());
+    router.push('/(tabs)/event-list'); // Navigate to the event list
   };
 
   return (
@@ -32,24 +49,32 @@ export default function AddEventScreen() {
         onChangeText={setEventName}
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Date (e.g., YYYY-MM-DD)"
-        value={eventDate}
-        onChangeText={setEventDate}
-      />
+      <View style={styles.dateTimeContainer}>
+        <ThemedText>Selected Date: {format(date, 'yyyy-MM-dd')}</ThemedText>
+        <Button onPress={() => { setMode('date'); setShow(true); }} title="Select Date" />
+      </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Time (e.g., HH:MM)"
-        value={eventTime}
-        onChangeText={setEventTime}
-      />
+      <View style={styles.dateTimeContainer}>
+         <ThemedText>Selected Time: {format(date, 'HH:mm')}</ThemedText>
+         <Button onPress={() => { setMode('time'); setShow(true); }} title="Select Time" />
+      </View>
+
+      {show && (
+        <DateTimePicker
+          testID="dateTimePicker"
+          value={date}
+          mode={mode}
+          is24Hour={true}
+          display="default"
+          onChange={onChange}
+        />
+      )}
 
       <Button title="Save Event" onPress={handleSaveEvent} />
     </ThemedView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -68,5 +93,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     color: '#000', // Ensure text is visible in light mode
     backgroundColor: '#fff', // Ensure background is visible in light mode
+  },
+  dateTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
 });
