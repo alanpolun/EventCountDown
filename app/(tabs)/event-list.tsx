@@ -1,10 +1,11 @@
-import { StyleSheet, FlatList, View } from 'react-native';
+import { StyleSheet, FlatList, View, TouchableOpacity } from 'react-native';
 import { useState, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Correct import for AsyncStorage
 import { useFocusEffect } from 'expo-router';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 type Event = {
   id: string;
@@ -41,10 +42,29 @@ export default function EventListScreen() {
     }, [loadEvents])
   );
 
+  const handleRemoveEvent = useCallback(async (id: string) => {
+    try {
+      const existingEventsString = await AsyncStorage.getItem('scheduledEvents');
+      if (existingEventsString !== null) {
+        const existingEvents: Event[] = JSON.parse(existingEventsString);
+        const updatedEvents = existingEvents.filter(event => event.id !== id);
+        await AsyncStorage.setItem('scheduledEvents', JSON.stringify(updatedEvents));
+        setEvents(updatedEvents); // Update state to re-render
+      }
+    } catch (error) {
+      console.error('Error removing event:', error);
+    }
+  }, []);
+
   const renderItem = ({ item }: { item: Event }) => (
-    <View style={styles.eventItem}>
-      <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
-      <ThemedText>{new Date(item.date).toLocaleString()}</ThemedText>
+    <View style={styles.eventItemContainer}>
+      <View style={styles.eventDetails}>
+        <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
+        <ThemedText>{new Date(item.date).toLocaleString()}</ThemedText>
+      </View>
+      <TouchableOpacity onPress={() => handleRemoveEvent(item.id)}>
+        <IconSymbol size={24} name="trash.circle.fill" color="red" />
+      </TouchableOpacity>
     </View>
   );
 
@@ -72,11 +92,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
   },
-  eventItem: {
+  eventItemContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
-    marginBottom: 10, // Add some space between items
+    marginBottom: 10,
+  },
+  eventDetails: {
+    // Add styles here if needed for the text container
+  },
+  trashIcon: {
+    // Add styles here if needed for the trash icon
   },
   noEventsText: {
     textAlign: 'center',
