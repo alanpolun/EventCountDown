@@ -8,12 +8,86 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+
+type Event = {
+  id: string;
+  name: string;
+  date: string; // Stored as ISO string
+};
+
+async function registerForPushNotificationsAsync() {
+  let token;
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      return;
+    }
+    token = (await Notifications.getExpoPushTokenAsync()).data;
+  }
+
+  return token;
+}
+
+async function scheduleNotification(event: Event) {
+  const eventDate = new Date(event.date);
+  const now = new Date();
+  const timeDiff = eventDate.getTime() - now.getTime();
+  const hoursBefore = 1; // 在事件開始前1小時提醒
+  
+  // 如果事件時間在未來
+  if (timeDiff > 0) {
+    const notificationTime = new Date(eventDate);
+    notificationTime.setHours(notificationTime.getHours() - hoursBefore);
+
+    if (notificationTime > now) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `活動提醒：${event.name}`,
+          body: `您的活動將在 1 小時後開始`,
+          data: { eventId: event.id },
+        },
+        trigger: null,
+      });
+    }
+  }
+}
 
 export default function AddEventScreen() {
   const [eventName, setEventName] = useState('');
   const [date, setDate] = useState(new Date());
   const [mode, setMode] = useState<'date' | 'time'>('date');
   const [show, setShow] = useState(false);
+
+  // 初始化通知處理
+  React.useEffect(() => {
+    registerForPushNotificationsAsync();
+
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true
+      }),
+    });
+  }, []);
 
   const onChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     const currentDate = selectedDate || date;
@@ -22,22 +96,52 @@ export default function AddEventScreen() {
   };
 
   const handleSaveEvent = async () => {
-    console.log('Event Name:', eventName);
-    console.log('Event Date and Time:', date);
+    try {
+      if (!eventName.trim()) {
+        // 如果沒有輸入事件名稱，不要儲存
+        console.log('Event name is required');
+        return;
+      }
 
-    const newEvent = {
-      id: Date.now().toString(), // Simple unique ID
-      name: eventName,
-      date: date.toISOString(), // Save date as ISO string
-    };
+      console.log('Saving event:', eventName);
+      console.log('Event Date and Time:', date);
 
-    const existingEvents = await AsyncStorage.getItem('scheduledEvents');
-    const events = existingEvents ? JSON.parse(existingEvents) : [];
-    events.push(newEvent);
-    await AsyncStorage.setItem('scheduledEvents', JSON.stringify(events));
-    setEventName('');
-    setDate(new Date());
-    router.push('/(tabs)/event-list'); // Navigate to the event list
+      const newEvent = {
+        id: Date.now().toString(), // Simple unique ID
+        name: eventName.trim(),
+        date: date.toISOString(), // Save date as ISO string
+      };
+
+      // 先檢查是否可以讀取現有事件
+      const existingEventsString = await AsyncStorage.getItem('scheduledEvents');
+      let events = [];
+      if (existingEventsString) {
+        events = JSON.parse(existingEventsString);
+      }
+      
+      // 新增事件到列表
+      events.push(newEvent);
+      
+      // 儲存更新後的事件列表
+      await AsyncStorage.setItem('scheduledEvents', JSON.stringify(events));
+      console.log('Event saved successfully');
+
+      // 檢查通知權限並註冊
+      await registerForPushNotificationsAsync();
+
+      // 設定此事件的通知
+      await scheduleNotification(newEvent);
+      console.log('Notification scheduled');
+
+      // 重置表單
+      setEventName('');
+      setDate(new Date());
+      
+      // 導航回事件列表
+      router.push('/(tabs)/event-list');
+    } catch (error) {
+      console.error('Error saving event:', error);
+    }
   };
 
   return (

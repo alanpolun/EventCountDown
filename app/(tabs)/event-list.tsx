@@ -1,8 +1,11 @@
-import { StyleSheet, FlatList, View, TouchableOpacity, Animated, Dimensions } from 'react-native';
-import { useState, useCallback, useRef } from 'react';
+import { StyleSheet, FlatList, View, TouchableOpacity, Animated, Dimensions, Platform } from 'react-native';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { differenceInSeconds, differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -14,8 +17,64 @@ type Event = {
   date: string; // Stored as ISO string
 };
 
+async function registerForPushNotificationsAsync() {
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+    });
+  }
+
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+  
+  return finalStatus === 'granted';
+}
+
+async function scheduleNotification(event: Event) {
+  try {
+    const eventDate = new Date(event.date);
+    const now = new Date();
+    
+    // 只在事件開始前 1 小時發送通知
+    const notificationTime = new Date(eventDate);
+    notificationTime.setHours(notificationTime.getHours() - 1);
+
+    if (notificationTime > now) {
+      await Notifications.presentNotificationAsync({
+        title: `活動提醒：${event.name}`,
+        body: `您的活動將在 1 小時後開始`,
+        data: { eventId: event.id },
+      });
+      console.log('Notification presented for:', event.name);
+    }
+  } catch (error) {
+    console.error('Error showing notification:', error);
+  }
+}
+
 export default function EventListScreen() {
   const [events, setEvents] = useState<Event[]>([]);
+
+  // 初始化通知設置
+  useEffect(() => {
+    registerForPushNotificationsAsync();
+    
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  }, []);
 
   const loadEvents = useCallback(async () => {
     try {
@@ -33,13 +92,12 @@ export default function EventListScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // Call the async function inside the effect
-      (async () => {
-        await loadEvents();
-      })();
-
-      // Optional cleanup function
-      return () => {};
+      console.log('Event List screen focused - loading events');
+      loadEvents();
+      
+      return () => {
+        // Cleanup if needed
+      };
     }, [loadEvents])
   );
 
@@ -49,6 +107,15 @@ export default function EventListScreen() {
       if (existingEventsString !== null) {
         const existingEvents: Event[] = JSON.parse(existingEventsString);
         const updatedEvents = existingEvents.filter(event => event.id !== id);
+        
+        // 取消所有通知
+        await Notifications.cancelAllScheduledNotificationsAsync();
+        
+        // 為剩餘的事件重新設置通知
+        for (const event of updatedEvents) {
+          await scheduleNotification(event);
+        }
+        
         await AsyncStorage.setItem('scheduledEvents', JSON.stringify(updatedEvents));
         setEvents(updatedEvents); // Update state to re-render
       }
@@ -64,22 +131,92 @@ export default function EventListScreen() {
     });
   };
 
-  const renderItem = ({ item }: { item: Event }) => {
+  const calculateTimeLeft = (targetDate: Date) => {
+    const now = new Date();
+    const days = differenceInDays(targetDate, now);
+    const hours = differenceInHours(targetDate, now);
+    const minutes = differenceInMinutes(targetDate, now);
+    const seconds = differenceInSeconds(targetDate, now);
+
+    if (days > 7) {
+      return `${days} 天`;
+    } else if (days >= 1) {
+      return `${hours} 小時`;
+    } else if (hours >= 12) {
+      return `${minutes} 分鐘`;
+    } else if (seconds > 0) {
+      return `${seconds} 秒`;
+    }
+    return '已過期';
+  };
+
+  const EventItem = ({ item }: { item: Event }) => {
+    const [timeLeft, setTimeLeft] = useState('');
     const eventDate = new Date(item.date);
     const isUpcoming = eventDate > new Date();
+    const opacityAnim = useRef(new Animated.Value(1)).current;
+    const isWithinOneDay = differenceInHours(eventDate, new Date()) <= 24 && isUpcoming;
+
+    // 閃爍動畫效果
+    useEffect(() => {
+      let animation: Animated.CompositeAnimation;
+      if (isWithinOneDay) {
+        animation = Animated.sequence([
+          Animated.timing(opacityAnim, {
+            toValue: 0.4,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          })
+        ]);
+
+        Animated.loop(animation).start();
+      } else {
+        opacityAnim.setValue(1);
+      }
+
+      return () => {
+        if (animation) {
+          animation.stop();
+        }
+      };
+    }, [isWithinOneDay, opacityAnim]);
+
+    useEffect(() => {
+      const timer = setInterval(() => {
+        setTimeLeft(calculateTimeLeft(eventDate));
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }, [eventDate]);
     
     return (
-      <TouchableOpacity 
-        style={[styles.eventItemContainer, !isUpcoming && styles.pastEvent]}
-        onPress={() => handleEventPress(item)}
-      >
-        <LinearGradient
-          colors={isUpcoming ? ['#4a90e2', '#357abd'] : ['#9e9e9e', '#757575']}
-          style={styles.eventGradient}
+      <Animated.View style={{ opacity: opacityAnim }}>
+        <TouchableOpacity 
+          style={[styles.eventItemContainer, !isUpcoming && styles.pastEvent]}
+          onPress={() => handleEventPress(item)}
         >
+          <LinearGradient
+            colors={
+              isWithinOneDay ? ['#ff3b30', '#ff6b6b'] :
+              isUpcoming ? ['#4a90e2', '#357abd'] : 
+              ['#9e9e9e', '#757575']
+            }
+            style={styles.eventGradient}
+          >
           <View style={styles.eventDetails}>
             <ThemedText style={styles.eventName} type="defaultSemiBold">{item.name}</ThemedText>
-            <ThemedText style={styles.eventDate}>{new Date(item.date).toLocaleString()}</ThemedText>
+            <View style={styles.timeRow}>
+              <ThemedText style={styles.eventDate}>{new Date(item.date).toLocaleString()}</ThemedText>
+              <View style={styles.countdownBadge}>
+                <IconSymbol size={14} name="clock.fill" color="rgba(255,255,255,0.9)" />
+                <ThemedText style={styles.countdownText}>{timeLeft}</ThemedText>
+              </View>
+            </View>
             {!isUpcoming && (
               <ThemedText style={styles.pastEventLabel}>已過期</ThemedText>
             )}
@@ -91,10 +228,11 @@ export default function EventListScreen() {
             }}
             style={styles.deleteButton}
           >
-            <IconSymbol size={24} name="trash.circle.fill" color="#ff3b30" />
+            <IconSymbol size={24} name="trash.circle.fill" color="#000000" />
           </TouchableOpacity>
         </LinearGradient>
       </TouchableOpacity>
+      </Animated.View>
     );
   };
 
@@ -103,7 +241,7 @@ export default function EventListScreen() {
       <ThemedText type="title" style={styles.title}>Event List</ThemedText>
       <FlatList
         data={events}
-        renderItem={renderItem}
+        renderItem={({ item }) => <EventItem item={item} />}
         keyExtractor={item => item.id.toString()}
         ListEmptyComponent={() => (
           <ThemedText style={styles.noEventsText}>No events scheduled yet.</ThemedText>
@@ -125,6 +263,25 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#2c3e50'
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  countdownBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  countdownText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    marginLeft: 4,
   },
   eventItemContainer: {
     borderRadius: 12,
