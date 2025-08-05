@@ -1,7 +1,7 @@
 import { StyleSheet, FlatList, View, TouchableOpacity } from 'react-native';
 import { useState, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Correct import for AsyncStorage
-import { useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect, router } from 'expo-router';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -56,16 +56,32 @@ export default function EventListScreen() {
     }
   }, []);
 
+  const handleEventPress = (event: Event) => {
+    router.navigate({
+      pathname: "/(tabs)/countdown",
+      params: { name: event.name, date: event.date }
+    });
+  };
+
   const renderItem = ({ item }: { item: Event }) => (
-    <View style={styles.eventItemContainer}>
+    <TouchableOpacity 
+      style={styles.eventItemContainer}
+      onPress={() => handleEventPress(item)}
+    >
       <View style={styles.eventDetails}>
         <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
-        <ThemedText>{new Date(item.date).toLocaleString()}</ThemedText>
+        <ThemedText>{`${new Date(item.date).toLocaleString()}`}</ThemedText>
       </View>
-      <TouchableOpacity onPress={() => handleRemoveEvent(item.id)}>
+      <TouchableOpacity 
+        onPress={(e) => {
+          e.stopPropagation();
+          handleRemoveEvent(item.id);
+        }}
+        style={styles.deleteButton}
+      >
         <IconSymbol size={24} name="trash.circle.fill" color="red" />
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -86,11 +102,11 @@ export default function EventListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: 20
   },
   title: {
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   eventItemContainer: {
     flexDirection: 'row',
@@ -99,17 +115,19 @@ const styles = StyleSheet.create({
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
-    marginBottom: 10,
+    marginBottom: 10
+  },
+  deleteButton: {
+    padding: 8
   },
   eventDetails: {
-    // Add styles here if needed for the text container
-  },
-  trashIcon: {
-    // Add styles here if needed for the trash icon
+    flex: 1,
+    marginRight: 10
   },
   noEventsText: {
     textAlign: 'center',
     marginTop: 20,
-    fontStyle: 'italic',
-  },
+    color: '#666',
+    fontStyle: 'italic'
+  }
 });

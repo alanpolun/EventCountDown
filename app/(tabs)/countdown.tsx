@@ -7,7 +7,7 @@ import { format, differenceInDays, differenceInHours, differenceInMinutes, diffe
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
-type TimeUnit = 'days' | 'hours' | 'minutes';
+type TimeUnit = 'days' | 'hours' | 'minutes' | 'seconds';
 
 export default function CountdownScreen() {
   const params = useLocalSearchParams();
@@ -34,15 +34,30 @@ export default function CountdownScreen() {
         case 'minutes':
           diff = differenceInMinutes(eventDate, now);
           break;
+        case 'seconds':
+          diff = differenceInSeconds(eventDate, now);
+          break;
         default:
           diff = differenceInDays(eventDate, now);
       }
+
+      if (diff < 0) {
+        setTimeLeft(0); // Event has passed
+        return;
+      }
+      
       setTimeLeft(diff);
     };
 
     calculateTimeLeft(); // Calculate initially
 
-    const timerId = setInterval(calculateTimeLeft, 1000); // Update every second
+    // Set interval based on the selected time unit
+    const intervalTime = timeUnit === 'seconds' ? 1000 : // 1 second
+                        timeUnit === 'minutes' ? 60000 : // 1 minute
+                        timeUnit === 'hours' ? 3600000 : // 1 hour
+                        86400000; // 1 day
+
+    const timerId = setInterval(calculateTimeLeft, intervalTime);
 
     return () => clearInterval(timerId); // Cleanup on unmount
   }, [eventDate, timeUnit]); // Dependency array includes eventDate and timeUnit
@@ -55,6 +70,8 @@ export default function CountdownScreen() {
               return 'Hours';
           case 'minutes':
               return 'Minutes';
+          case 'seconds':
+              return 'Seconds';
           default:
               return 'Days';
       }
@@ -69,14 +86,18 @@ export default function CountdownScreen() {
 
       {timeLeft !== null && (
           <ThemedText type="defaultSemiBold" style={styles.countdownText}>
-              Time Left: {timeLeft} {displayTimeUnit()}
+              {timeLeft === 0 ? 
+                "Event has passed!" :
+                `Time Left: ${timeLeft} ${displayTimeUnit()}`
+              }
           </ThemedText>
       )}
 
       <View style={styles.unitSelector}>
-          <Button title="Days" onPress={() => setTimeUnit('days')} disabled={!eventDate} />\
-          <Button title="Hours" onPress={() => setTimeUnit('hours')} disabled={!eventDate} />\
-          <Button title="Minutes" onPress={() => setTimeUnit('minutes')} disabled={!eventDate} />\
+          <Button title="Days" onPress={() => setTimeUnit('days')} disabled={!eventDate} />
+          <Button title="Hours" onPress={() => setTimeUnit('hours')} disabled={!eventDate} />
+          <Button title="Minutes" onPress={() => setTimeUnit('minutes')} disabled={!eventDate} />
+          <Button title="Seconds" onPress={() => setTimeUnit('seconds')} disabled={!eventDate} />
       </View>
     </ThemedView>
   );
