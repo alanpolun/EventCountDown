@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { TextInput, Button, StyleSheet, Platform, View } from 'react-native';
+import { TextInput, StyleSheet, Platform, View, TouchableOpacity, Dimensions } from 'react-native';
 import { router } from 'expo-router';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format } from 'date-fns';
+import { LinearGradient } from 'expo-linear-gradient';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function AddEventScreen() {
   const [eventName, setEventName] = useState('');
@@ -39,64 +41,158 @@ export default function AddEventScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>Add New Event</ThemedText>
+    <LinearGradient
+      colors={['#4a90e2', '#357abd']}
+      style={styles.container}
+    >
+      <ThemedText type="title" style={styles.title}>新增活動</ThemedText>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Event Name"
-        value={eventName}
-        onChangeText={setEventName}
-      />
+      <View style={styles.card}>
+        <View style={styles.inputContainer}>
+          <IconSymbol size={24} name="pencil.circle.fill" color="#4a90e2" />
+          <TextInput
+            style={styles.input}
+            placeholder="活動名稱"
+            placeholderTextColor="#999"
+            value={eventName}
+            onChangeText={setEventName}
+          />
+        </View>
 
-      <View style={styles.dateTimeContainer}>
-        <ThemedText>Selected Date: {format(date, 'yyyy-MM-dd')}</ThemedText>
-        <Button onPress={() => { setMode('date'); setShow(true); }} title="Select Date" />
+        <View style={styles.dateTimeContainer}>
+          <TouchableOpacity
+            style={styles.dateTimeButton}
+            onPress={() => { setMode('date'); setShow(true); }}
+          >
+            <IconSymbol size={24} name="calendar" color="#4a90e2" />
+            <View style={styles.dateTimeText}>
+              <ThemedText style={styles.dateTimeLabel}>日期</ThemedText>
+              <ThemedText style={styles.dateTimeValue}>{format(date, 'yyyy-MM-dd')}</ThemedText>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.dateTimeContainer}>
+          <TouchableOpacity
+            style={styles.dateTimeButton}
+            onPress={() => { setMode('time'); setShow(true); }}
+          >
+            <IconSymbol size={24} name="clock" color="#4a90e2" />
+            <View style={styles.dateTimeText}>
+              <ThemedText style={styles.dateTimeLabel}>時間</ThemedText>
+              <ThemedText style={styles.dateTimeValue}>{format(date, 'HH:mm')}</ThemedText>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {show && (
+          <DateTimePicker
+            testID="dateTimePicker"
+            value={date}
+            mode={mode}
+            is24Hour={true}
+            display="default"
+            onChange={onChange}
+          />
+        )}
       </View>
 
-      <View style={styles.dateTimeContainer}>
-         <ThemedText>Selected Time: {format(date, 'HH:mm')}</ThemedText>
-         <Button onPress={() => { setMode('time'); setShow(true); }} title="Select Time" />
-      </View>
-
-      {show && (
-        <DateTimePicker
-          testID="dateTimePicker"
-          value={date}
-          mode={mode}
-          is24Hour={true}
-          display="default"
-          onChange={onChange}
-        />
-      )}
-
-      <Button title="Save Event" onPress={handleSaveEvent} />
-    </ThemedView>
+      <TouchableOpacity
+        style={styles.saveButton}
+        onPress={handleSaveEvent}
+      >
+        <LinearGradient
+          colors={['#34c759', '#30b350']}
+          style={styles.saveButtonGradient}
+        >
+          <IconSymbol size={24} name="checkmark.circle.fill" color="#ffffff" />
+          <ThemedText style={styles.saveButtonText}>儲存活動</ThemedText>
+        </LinearGradient>
+      </TouchableOpacity>
+    </LinearGradient>
   );
 }
 
 
+const { width } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 20,
   },
   title: {
-    marginBottom: 20,
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 24,
     textAlign: 'center',
   },
-  input: {
-    height: 40,
-    borderColor: 'gray',
-    borderWidth: 1,
-    marginBottom: 12,
-    paddingHorizontal: 8,
-    color: '#000', // Ensure text is visible in light mode
-    backgroundColor: '#fff', // Ensure background is visible in light mode
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  dateTimeContainer: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    marginBottom: 20,
+    paddingHorizontal: 12,
+  },
+  input: {
+    flex: 1,
+    height: 50,
+    marginLeft: 10,
+    fontSize: 16,
+    color: '#333',
+  },
+  dateTimeContainer: {
+    marginBottom: 15,
+  },
+  dateTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    padding: 12,
+  },
+  dateTimeText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  dateTimeLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  dateTimeValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+  },
+  saveButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 10,
+  },
+  saveButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });

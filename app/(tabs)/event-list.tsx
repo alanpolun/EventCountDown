@@ -91,7 +91,7 @@ export default function EventListScreen() {
             }}
             style={styles.deleteButton}
           >
-            <IconSymbol size={24} name="trash.circle.fill" color="rgba(255,255,255,0.9)" />
+            <IconSymbol size={24} name="trash.circle.fill" color="#ff3b30" />
           </TouchableOpacity>
         </LinearGradient>
       </TouchableOpacity>

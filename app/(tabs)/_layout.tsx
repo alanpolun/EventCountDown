@@ -45,7 +45,7 @@ export default function TabLayout() {
         name="countdown"
         options={{
           title: 'Countdown',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="timer.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="clock.fill" color={color} />,
         }}
       />
     </Tabs>

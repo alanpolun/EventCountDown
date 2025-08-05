@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -83,48 +84,74 @@ export default function CountdownScreen() {
       colors={['#4a90e2', '#357abd']}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <ThemedText style={styles.title}>倒數計時器</ThemedText>
-        {eventName && <ThemedText style={styles.eventName}>{eventName}</ThemedText>}
-        {eventDate && (
-          <ThemedText style={styles.eventDate}>
-            {format(eventDate, 'yyyy-MM-dd HH:mm')}
-          </ThemedText>
-        )}
-      </View>
+      <View style={styles.contentContainer}>
+        <View style={styles.card}>
+          <View style={styles.header}>
+            <IconSymbol size={32} name="clock.circle.fill" color="#4a90e2" />
+            <ThemedText style={styles.title}>倒數計時器</ThemedText>
+            {eventName && (
+              <View style={styles.eventInfo}>
+                <IconSymbol size={20} name="calendar.badge.clock" color="#666" />
+                <ThemedText style={styles.eventName}>{eventName}</ThemedText>
+              </View>
+            )}
+            {eventDate && (
+              <View style={styles.eventInfo}>
+                <IconSymbol size={20} name="clock.fill" color="#666" />
+                <ThemedText style={styles.eventDate}>
+                  {format(eventDate, 'yyyy-MM-dd HH:mm')}
+                </ThemedText>
+              </View>
+            )}
+          </View>
 
-      {timeLeft !== null && (
-        <View style={styles.countdownContainer}>
-          <ThemedText style={styles.countdownText}>
-            {timeLeft === 0 ? "活動已結束！" : timeLeft.toString()}
-          </ThemedText>
-          {timeLeft !== 0 && (
-            <ThemedText style={styles.unitText}>
-              {displayTimeUnit()}
-            </ThemedText>
+          {timeLeft !== null && (
+            <View style={styles.countdownContainer}>
+              <ThemedText style={styles.countdownText}>
+                {timeLeft === 0 ? "活動已結束！" : timeLeft.toString()}
+              </ThemedText>
+              {timeLeft !== 0 && (
+                <ThemedText style={styles.unitText}>
+                  {displayTimeUnit()}
+                </ThemedText>
+              )}
+            </View>
           )}
         </View>
-      )}
 
-      <View style={styles.unitSelector}>
-        {(['days', 'hours', 'minutes', 'seconds'] as TimeUnit[]).map((unit) => (
-          <TouchableOpacity
-            key={unit}
-            style={[
-              styles.unitButton,
-              timeUnit === unit && styles.activeUnitButton
-            ]}
-            onPress={() => setTimeUnit(unit)}
-            disabled={!eventDate}
-          >
-            <ThemedText style={[
-              styles.unitButtonText,
-              timeUnit === unit && styles.activeUnitButtonText
-            ]}>
-              {unit.charAt(0).toUpperCase() + unit.slice(1)}
-            </ThemedText>
-          </TouchableOpacity>
-        ))}
+        <View style={styles.unitSelectorCard}>
+          {(['days', 'hours', 'minutes', 'seconds'] as TimeUnit[]).map((unit) => (
+            <TouchableOpacity
+              key={unit}
+              style={[
+                styles.unitButton,
+                timeUnit === unit && styles.activeUnitButton
+              ]}
+              onPress={() => setTimeUnit(unit)}
+              disabled={!eventDate}
+            >
+              <IconSymbol 
+                size={24} 
+                name={
+                  unit === 'days' ? 'calendar' :
+                  unit === 'hours' ? 'clock' :
+                  unit === 'minutes' ? 'timer' :
+                  'stopwatch'
+                } 
+                color={timeUnit === unit ? '#ffffff' : '#4a90e2'} 
+              />
+              <ThemedText style={[
+                styles.unitButtonText,
+                timeUnit === unit && styles.activeUnitButtonText
+              ]}>
+                {unit === 'days' ? '天數' :
+                 unit === 'hours' ? '小時' :
+                 unit === 'minutes' ? '分鐘' :
+                 '秒數'}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
     </LinearGradient>
   );
@@ -135,66 +162,101 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
+  },
+  contentContainer: {
+    flex: 1,
     padding: 20,
+    justifyContent: 'space-between',
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    width: '100%',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 10,
+    color: '#333',
+    marginVertical: 8,
+  },
+  eventInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
   },
   eventName: {
-    fontSize: 24,
-    color: '#ffffff',
-    marginBottom: 5,
+    fontSize: 20,
+    color: '#333',
+    marginLeft: 8,
   },
   eventDate: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
+    color: '#666',
+    marginLeft: 8,
   },
   countdownContainer: {
     alignItems: 'center',
-    marginVertical: 40,
+    paddingVertical: 30,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    marginTop: 20,
   },
   countdownText: {
-    fontSize: 72,
+    fontSize: 64,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#4a90e2',
   },
   unitText: {
     fontSize: 24,
-    color: 'rgba(255,255,255,0.8)',
+    color: '#666',
     marginTop: 10,
   },
-  unitSelector: {
+  unitSelectorCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 15,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 10,
-    marginTop: 40,
-    width: '100%',
   },
   unitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    minWidth: width / 4 - 20,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#f5f5f5',
+    minWidth: (width - 100) / 2,
+    marginHorizontal: 5,
+    marginVertical: 5,
+    justifyContent: 'center',
   },
   activeUnitButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#4a90e2',
   },
   unitButtonText: {
-    color: '#ffffff',
+    color: '#4a90e2',
     fontSize: 16,
-    textAlign: 'center',
+    marginLeft: 8,
+    fontWeight: '600',
   },
   activeUnitButtonText: {
-    color: '#4a90e2',
+    color: '#ffffff',
   }
 });
