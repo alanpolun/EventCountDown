@@ -17,7 +17,8 @@ type Event = {
   date: string; // Stored as ISO string
 };
 
-async function registerForPushNotificationsAsync() {
+async function requestNotificationPermission() {
+  // 只需要請求通知權限，不需要推送通知的token
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
@@ -41,20 +42,44 @@ async function scheduleNotification(event: Event) {
     const eventDate = new Date(event.date);
     const now = new Date();
     
-    // 只在事件開始前 1 小時發送通知
-    const notificationTime = new Date(eventDate);
-    notificationTime.setHours(notificationTime.getHours() - 1);
+    // 設置多個通知時間點
+    const notificationTimes = [
+      { minutes: 10080, message: '7 天' },  // 7 days
+      { minutes: 4320, message: '3 天' },   // 3 days
+      { minutes: 1440, message: '1 天' },   // 1 day
+      { minutes: 720, message: '12 小時' },  // 12 hours
+      { minutes: 360, message: '6 小時' },   // 6 hours
+      { minutes: 60, message: '1 小時' },    // 1 hour
+      { minutes: 30, message: '30 分鐘' },   // 30 minutes
+      { minutes: 10, message: '10 分鐘' },   // 10 minutes
+      { minutes: 1, message: '1 分鐘' }      // 1 minute
+    ];
 
-    if (notificationTime > now) {
-      await Notifications.presentNotificationAsync({
-        title: `活動提醒：${event.name}`,
-        body: `您的活動將在 1 小時後開始`,
-        data: { eventId: event.id },
-      });
-      console.log('Notification presented for:', event.name);
+    for (const { minutes, message } of notificationTimes) {
+      const notificationTime = new Date(eventDate);
+      notificationTime.setMinutes(notificationTime.getMinutes() - minutes);
+
+      if (notificationTime > now) {
+        const seconds = Math.floor((notificationTime.getTime() - now.getTime()) / 1000);
+        console.log(`Scheduling notification for ${event.name}: ${seconds} seconds from now (${message}前)`);
+        
+        const notificationId = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `活動提醒：${event.name}`,
+            body: `您的活動「${event.name}」將在${message}後結束`,
+            data: { eventId: event.id },
+          },
+          trigger: seconds > 0 ? {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds,
+            repeats: false
+          } as Notifications.TimeIntervalTriggerInput : null,
+        });
+        console.log(`Scheduled notification with ID: ${notificationId} for ${message}前`);
+      }
     }
   } catch (error) {
-    console.error('Error showing notification:', error);
+    console.error('Error scheduling notification:', error);
   }
 }
 
@@ -63,7 +88,7 @@ export default function EventListScreen() {
 
   // 初始化通知設置
   useEffect(() => {
-    registerForPushNotificationsAsync();
+    requestNotificationPermission();
     
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
