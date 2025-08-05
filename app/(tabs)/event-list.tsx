@@ -1,7 +1,8 @@
-import { StyleSheet, FlatList, View, TouchableOpacity } from 'react-native';
-import { useState, useCallback } from 'react';
+import { StyleSheet, FlatList, View, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -63,26 +64,39 @@ export default function EventListScreen() {
     });
   };
 
-  const renderItem = ({ item }: { item: Event }) => (
-    <TouchableOpacity 
-      style={styles.eventItemContainer}
-      onPress={() => handleEventPress(item)}
-    >
-      <View style={styles.eventDetails}>
-        <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
-        <ThemedText>{`${new Date(item.date).toLocaleString()}`}</ThemedText>
-      </View>
+  const renderItem = ({ item }: { item: Event }) => {
+    const eventDate = new Date(item.date);
+    const isUpcoming = eventDate > new Date();
+    
+    return (
       <TouchableOpacity 
-        onPress={(e) => {
-          e.stopPropagation();
-          handleRemoveEvent(item.id);
-        }}
-        style={styles.deleteButton}
+        style={[styles.eventItemContainer, !isUpcoming && styles.pastEvent]}
+        onPress={() => handleEventPress(item)}
       >
-        <IconSymbol size={24} name="trash.circle.fill" color="red" />
+        <LinearGradient
+          colors={isUpcoming ? ['#4a90e2', '#357abd'] : ['#9e9e9e', '#757575']}
+          style={styles.eventGradient}
+        >
+          <View style={styles.eventDetails}>
+            <ThemedText style={styles.eventName} type="defaultSemiBold">{item.name}</ThemedText>
+            <ThemedText style={styles.eventDate}>{new Date(item.date).toLocaleString()}</ThemedText>
+            {!isUpcoming && (
+              <ThemedText style={styles.pastEventLabel}>已過期</ThemedText>
+            )}
+          </View>
+          <TouchableOpacity 
+            onPress={(e) => {
+              e.stopPropagation();
+              handleRemoveEvent(item.id);
+            }}
+            style={styles.deleteButton}
+          >
+            <IconSymbol size={24} name="trash.circle.fill" color="rgba(255,255,255,0.9)" />
+          </TouchableOpacity>
+        </LinearGradient>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -102,32 +116,62 @@ export default function EventListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20
+    padding: 20,
+    backgroundColor: '#f5f5f5'
   },
   title: {
     marginBottom: 20,
-    textAlign: 'center'
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2c3e50'
   },
   eventItemContainer: {
+    borderRadius: 12,
+    marginBottom: 15,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    overflow: 'hidden'
+  },
+  pastEvent: {
+    opacity: 0.7
+  },
+  eventGradient: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    marginBottom: 10
-  },
-  deleteButton: {
-    padding: 8
+    padding: 15
   },
   eventDetails: {
     flex: 1,
     marginRight: 10
   },
+  eventName: {
+    fontSize: 18,
+    color: '#ffffff',
+    marginBottom: 5
+  },
+  eventDate: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)'
+  },
+  pastEventLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    marginTop: 4
+  },
+  deleteButton: {
+    padding: 8,
+    borderRadius: 20
+  },
   noEventsText: {
     textAlign: 'center',
     marginTop: 20,
     color: '#666',
-    fontStyle: 'italic'
+    fontStyle: 'italic',
+    fontSize: 16
   }
 });

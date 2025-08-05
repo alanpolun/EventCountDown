@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View, Button, Platform } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Platform, Dimensions } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from 'date-fns';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -78,45 +79,122 @@ export default function CountdownScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title">Countdown Timer</ThemedText>
-      {/* Display event name if available */}
-      {eventName && <ThemedText type="subtitle">Event: {eventName}</ThemedText>}
-      {eventDate && <ThemedText>Event Date: {format(eventDate, 'yyyy-MM-dd HH:mm')}</ThemedText>}
+    <LinearGradient
+      colors={['#4a90e2', '#357abd']}
+      style={styles.container}
+    >
+      <View style={styles.header}>
+        <ThemedText style={styles.title}>倒數計時器</ThemedText>
+        {eventName && <ThemedText style={styles.eventName}>{eventName}</ThemedText>}
+        {eventDate && (
+          <ThemedText style={styles.eventDate}>
+            {format(eventDate, 'yyyy-MM-dd HH:mm')}
+          </ThemedText>
+        )}
+      </View>
 
       {timeLeft !== null && (
-          <ThemedText type="defaultSemiBold" style={styles.countdownText}>
-              {timeLeft === 0 ? 
-                "Event has passed!" :
-                `Time Left: ${timeLeft} ${displayTimeUnit()}`
-              }
+        <View style={styles.countdownContainer}>
+          <ThemedText style={styles.countdownText}>
+            {timeLeft === 0 ? "活動已結束！" : timeLeft.toString()}
           </ThemedText>
+          {timeLeft !== 0 && (
+            <ThemedText style={styles.unitText}>
+              {displayTimeUnit()}
+            </ThemedText>
+          )}
+        </View>
       )}
 
       <View style={styles.unitSelector}>
-          <Button title="Days" onPress={() => setTimeUnit('days')} disabled={!eventDate} />
-          <Button title="Hours" onPress={() => setTimeUnit('hours')} disabled={!eventDate} />
-          <Button title="Minutes" onPress={() => setTimeUnit('minutes')} disabled={!eventDate} />
-          <Button title="Seconds" onPress={() => setTimeUnit('seconds')} disabled={!eventDate} />
+        {(['days', 'hours', 'minutes', 'seconds'] as TimeUnit[]).map((unit) => (
+          <TouchableOpacity
+            key={unit}
+            style={[
+              styles.unitButton,
+              timeUnit === unit && styles.activeUnitButton
+            ]}
+            onPress={() => setTimeUnit(unit)}
+            disabled={!eventDate}
+          >
+            <ThemedText style={[
+              styles.unitButtonText,
+              timeUnit === unit && styles.activeUnitButtonText
+            ]}>
+              {unit.charAt(0).toUpperCase() + unit.slice(1)}
+            </ThemedText>
+          </TouchableOpacity>
+        ))}
       </View>
-    </ThemedView>
+    </LinearGradient>
   );
 }
 
+const { width } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center', // Align items in the center
-    flex: 1, // Added flex: 1 for proper layout
+    flex: 1,
+    alignItems: 'center',
     padding: 20,
   },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 10,
+  },
+  eventName: {
+    fontSize: 24,
+    color: '#ffffff',
+    marginBottom: 5,
+  },
+  eventDate: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  countdownContainer: {
+    alignItems: 'center',
+    marginVertical: 40,
+  },
   countdownText: {
-      fontSize: 24,
-      marginVertical: 20,
+    fontSize: 72,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  unitText: {
+    fontSize: 24,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 10,
   },
   unitSelector: {
-      flexDirection: 'row',
-      marginTop: 20,
-      justifyContent: 'space-around',
-      width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 40,
+    width: '100%',
+  },
+  unitButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    minWidth: width / 4 - 20,
+  },
+  activeUnitButton: {
+    backgroundColor: '#ffffff',
+  },
+  unitButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  activeUnitButtonText: {
+    color: '#4a90e2',
   }
 });
