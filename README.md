@@ -1,4 +1,9 @@
 > Edited for use in IDX on 07/09/12
+# by Alan Po on 14 Aug 2025
+
+use "npx expo start --tunnel" to start and ignore the message "open in web browser...."
+
+After show the qr code, type 's' to switch the code for expo Go
 
 # Welcome to your Expo app 👋
 
